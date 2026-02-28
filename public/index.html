@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>AI Ideas</title>
+<style>
+:root{color-scheme:dark}body{font-family:Inter,system-ui;margin:0;background:#0b0d12;color:#e8ecf3}.wrap{max-width:920px;margin:20px auto;padding:0 16px}
+.card{background:#141923;border:1px solid #232b3a;border-radius:14px;padding:16px}.idea{display:flex;align-items:center;justify-content:space-between;border:1px solid #2a3344;border-radius:12px;padding:12px;margin:10px 0;background:#101622}
+.idea a{color:#9ec1ff;text-decoration:none;font-weight:700}.badge{font-size:12px;border:1px solid #31405a;border-radius:999px;padding:3px 9px;color:#c5d2ea;margin-left:6px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}.menu-btn{width:40px;height:40px;border-radius:10px;border:1px solid #2f3b52;background:#121929;display:grid;place-items:center;cursor:pointer}
+.menu-btn span,.menu-btn span:before,.menu-btn span:after{display:block;content:'';width:18px;height:2px;background:#d7e3ff;border-radius:2px;position:relative}.menu-btn span:before{position:absolute;top:-6px}.menu-btn span:after{position:absolute;top:6px}
+.drawer{position:fixed;inset:0;display:none}.drawer.open{display:block}.backdrop{position:absolute;inset:0;background:#0008}.panel{position:absolute;left:0;top:56px;bottom:0;width:260px;background:#101622;border-right:1px solid #283249;padding:16px}
+.panel a{display:block;padding:11px 12px;border-radius:10px;color:#cfe0ff;text-decoration:none;margin-bottom:8px;background:#141d2d}.panel a:hover{background:#1a2640}
+.search{margin-bottom:12px}.search input{width:100%;background:#0f1521;color:#e6ecff;border:1px solid #2f3b52;border-radius:10px;padding:10px}
+</style></head><body>
+<div class="drawer" id="drawer"><div class="backdrop" onclick="toggleMenu(false)"></div><div class="panel"><a href="/">Ideas</a><a href="/new.html">New Idea</a><a href="/labels.html">Label Management</a></div></div>
+<div class="wrap"><div class="top"><button class="menu-btn" onclick="toggleMenu(true)" aria-label="Open menu"><span></span></button><h1 style="margin:0">All Ideas</h1></div><div class="card"><div class="search"><input id="search" placeholder="Quick search ideas..."/></div><div id="ideas"></div><div style="margin-top:14px"><a href="/new.html" style="display:inline-grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#396ee8;color:white;text-decoration:none;font-size:24px;line-height:1">+</a></div></div></div>
+<script src="/config.js"></script>
+<script>
+const el={ideas:document.getElementById('ideas'),drawer:document.getElementById('drawer'),search:document.getElementById('search')};
+const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+let allIdeas=[];
+async function api(p,o={}){const r=await fetch((window.API_BASE||'') + p,{headers:{'Content-Type':'application/json'},...o});if(!r.ok)throw new Error(await r.text());return r.json();}
+function toggleMenu(open){el.drawer.classList.toggle('open',open)} window.toggleMenu=toggleMenu;
+function renderIdeas(ideas){if(!ideas.length){el.ideas.innerHTML='<p style="color:#9ca6ba">No matching ideas.</p>';return;}el.ideas.innerHTML=ideas.map(i=>`<div class="idea"><a href="/idea.html?id=${encodeURIComponent(i.id)}">${esc(i.title)}</a><div>${i.label?`<span class="badge">${esc(i.label)}</span>`:''}<span class="badge">${esc(i.status||'new')}</span></div></div>`).join('')}
+function applySearch(){const q=el.search.value.trim().toLowerCase();const filtered=allIdeas.filter(i=>!q||[i.title,i.description,i.label,(i.tags||[]).join(' ')].join(' ').toLowerCase().includes(q));renderIdeas(filtered)}
+api('/api/ideas').then(ideas=>{allIdeas=ideas;applySearch();}).catch(err=>el.ideas.innerHTML=`<p style="color:#ff8b8b">${esc(err.message)}</p>`);
+el.search.addEventListener('input',applySearch);
+</script></body></html>

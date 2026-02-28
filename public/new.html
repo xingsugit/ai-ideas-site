@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>New Idea</title>
+<style>
+:root{color-scheme:dark}body{font-family:Inter,system-ui;margin:0;background:#0b0d12;color:#e8ecf3}.wrap{max-width:920px;margin:20px auto;padding:0 16px}.card{background:#141923;border:1px solid #232b3a;border-radius:14px;padding:16px}
+input,textarea,select,button{width:100%;box-sizing:border-box;background:#0f1521;color:#e6ecff;border:1px solid #2f3b52;border-radius:10px;padding:10px}textarea{min-height:120px}button{background:#396ee8;border:none;font-weight:700;cursor:pointer}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}.menu-btn{width:40px;height:40px;border-radius:10px;border:1px solid #2f3b52;background:#121929;display:grid;place-items:center;cursor:pointer}
+.menu-btn span,.menu-btn span:before,.menu-btn span:after{display:block;content:'';width:18px;height:2px;background:#d7e3ff;border-radius:2px;position:relative}.menu-btn span:before{position:absolute;top:-6px}.menu-btn span:after{position:absolute;top:6px}
+.drawer{position:fixed;inset:0;display:none}.drawer.open{display:block}.backdrop{position:absolute;inset:0;background:#0008}.panel{position:absolute;left:0;top:56px;bottom:0;width:260px;background:#101622;border-right:1px solid #283249;padding:16px}.panel a{display:block;padding:11px 12px;border-radius:10px;color:#cfe0ff;text-decoration:none;margin-bottom:8px;background:#141d2d}
+</style></head><body>
+<div class="drawer" id="drawer"><div class="backdrop" onclick="toggleMenu(false)"></div><div class="panel"><a href="/">Ideas</a><a href="/new.html">New Idea</a><a href="/labels.html">Label Management</a></div></div>
+<div class="wrap"><div class="top"><button class="menu-btn" onclick="toggleMenu(true)"><span></span></button><h1 style="margin:0">New Idea</h1></div>
+<div class="card"><div class="row"><div><div style="font-size:12px;color:#9fb0cd;margin-bottom:6px">Idea Title</div><input id="title" placeholder="Idea title"/></div><div><div style="font-size:12px;color:#9fb0cd;margin-bottom:6px">Status</div><select id="status"><option value="new">New</option><option value="researching">Researching</option><option value="building">Building</option><option value="paused">Paused</option><option value="launched">Launched</option></select></div></div><div style="margin-bottom:10px"><div style="font-size:12px;color:#9fb0cd;margin-bottom:6px">Label</div><select id="label"></select></div><textarea id="description" placeholder="Description"></textarea><input id="tags" placeholder="tags, comma, separated" style="margin-top:10px"/><button id="create" style="margin-top:10px">Create idea</button></div></div>
+<script src="/config.js"></script>
+<script>
+const el={title:document.getElementById('title'),status:document.getElementById('status'),label:document.getElementById('label'),description:document.getElementById('description'),tags:document.getElementById('tags'),create:document.getElementById('create'),drawer:document.getElementById('drawer')};
+const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+function toggleMenu(open){el.drawer.classList.toggle('open',open)} window.toggleMenu=toggleMenu;
+async function api(p,o={}){const r=await fetch((window.API_BASE||'') + p,{headers:{'Content-Type':'application/json'},...o});if(!r.ok)throw new Error(await r.text());return r.json();}
+function renderLabels(labels){el.label.innerHTML='<option value="">No label</option>'+labels.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join('')}
+async function loadLabels(){renderLabels(await api('/api/labels'))}
+async function createIdea(){const title=el.title.value.trim();if(!title)return alert('Title required');const idea=await api('/api/ideas',{method:'POST',body:JSON.stringify({title,status:el.status.value,label:el.label.value,description:el.description.value,tags:el.tags.value.split(',').map(s=>s.trim()).filter(Boolean)})});location.href='/idea.html?id='+encodeURIComponent(idea.id)}
+el.create.addEventListener('click',createIdea);loadLabels();
+</script></body></html>

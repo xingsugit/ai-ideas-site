@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Label Management</title>
+<style>
+:root{color-scheme:dark}body{font-family:Inter,system-ui;margin:0;background:#0b0d12;color:#e8ecf3}.wrap{max-width:920px;margin:20px auto;padding:0 16px}.card{background:#141923;border:1px solid #232b3a;border-radius:14px;padding:16px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}.menu-btn{width:40px;height:40px;border-radius:10px;border:1px solid #2f3b52;background:#121929;display:grid;place-items:center;cursor:pointer}
+.menu-btn span,.menu-btn span:before,.menu-btn span:after{display:block;content:'';width:18px;height:2px;background:#d7e3ff;border-radius:2px;position:relative}.menu-btn span:before{position:absolute;top:-6px}.menu-btn span:after{position:absolute;top:6px}
+.drawer{position:fixed;inset:0;display:none}.drawer.open{display:block}.backdrop{position:absolute;inset:0;background:#0008}.panel{position:absolute;left:0;top:56px;bottom:0;width:260px;background:#101622;border-right:1px solid #283249;padding:16px}.panel a{display:block;padding:11px 12px;border-radius:10px;color:#cfe0ff;text-decoration:none;margin-bottom:8px;background:#141d2d}
+.add{display:grid;grid-template-columns:2fr auto;gap:10px;margin-bottom:14px;align-items:center}input,button{width:100%;box-sizing:border-box;background:#0f1521;color:#e6ecff;border:1px solid #2f3b52;border-radius:10px;padding:10px}button{background:#396ee8;border:none;font-weight:700;cursor:pointer}.add button{width:auto;padding:8px 14px;min-width:72px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #31405a;border-radius:999px;background:#101a2a}.chip .x{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#2b3750;color:#fff;cursor:pointer;font-size:12px;line-height:1}
+</style></head><body>
+<div class="drawer" id="drawer"><div class="backdrop" onclick="toggleMenu(false)"></div><div class="panel"><a href="/">Ideas</a><a href="/new.html">New Idea</a><a href="/labels.html">Label Management</a></div></div>
+<div class="wrap"><div class="top"><button class="menu-btn" onclick="toggleMenu(true)"><span></span></button><h1 style="margin:0">Label Management</h1></div>
+<div class="card"><div class="add"><input id="name" placeholder="Add new label"/><button id="add">Add</button></div><div id="labels" class="chips"></div></div></div>
+<script src="/config.js"></script>
+<script>
+const el={drawer:document.getElementById('drawer'),name:document.getElementById('name'),add:document.getElementById('add'),labels:document.getElementById('labels')};
+const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+function toggleMenu(open){el.drawer.classList.toggle('open',open)} window.toggleMenu=toggleMenu;
+async function api(p,o={}){const r=await fetch((window.API_BASE||'') + p,{headers:{'Content-Type':'application/json'},...o});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function load(){const labels=(await api('/api/labels')).slice().sort((a,b)=>a.localeCompare(b));el.labels.innerHTML=labels.map(l=>`<span class="chip">${esc(l)} <span class="x" onclick="removeLabel('${encodeURIComponent(l)}')">×</span></span>`).join('')||'<p style="color:#9ca6ba">No labels yet.</p>'}
+async function addLabel(){const name=el.name.value.trim();if(!name)return;await api('/api/labels',{method:'POST',body:JSON.stringify({name})});el.name.value='';await load()}
+async function removeLabel(enc){const name=decodeURIComponent(enc);if(!confirm(`Delete label "${name}"?`))return;await api('/api/labels/'+encodeURIComponent(name),{method:'DELETE'});await load()}
+window.removeLabel=removeLabel;el.add.addEventListener('click',addLabel);load();
+</script></body></html>

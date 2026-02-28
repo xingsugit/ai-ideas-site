@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Idea Details</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: Inter, system-ui, sans-serif; margin: 0; background:#0f1115; color:#e6e6e6; }
+    .wrap { max-width: 920px; margin: 24px auto; padding: 0 16px; }
+    .card { background:#171a21; border:1px solid #252a35; border-radius:12px; padding:16px; margin-bottom:16px; }
+    input, textarea, select, button { width:100%; box-sizing:border-box; background:#0f1115; color:#e6e6e6; border:1px solid #2f3542; border-radius:8px; padding:10px; }
+    textarea { min-height: 130px; resize:vertical; }
+    button { background:#3d7bfd; border:none; font-weight:600; cursor:pointer; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+    .attachments { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+    .file { border:1px solid #2a2f3a; border-radius:10px; padding:8px; }
+    .file img { width:100%; border-radius:8px; display:block; margin-bottom:8px; }
+    .ghost { background:#242a36; }
+    a { color:#8db4ff; text-decoration:none; }
+
+    .top { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .menu-btn { width:40px; height:40px; border-radius:10px; border:1px solid #2f3b52; background:#121929; display:grid; place-items:center; cursor:pointer; }
+    .menu-btn span,.menu-btn span:before,.menu-btn span:after{display:block;content:'';width:18px;height:2px;background:#d7e3ff;border-radius:2px;position:relative}
+    .menu-btn span:before{position:absolute;top:-6px}.menu-btn span:after{position:absolute;top:6px}
+    .drawer{position:fixed;inset:0;display:none}.drawer.open{display:block}
+    .backdrop{position:absolute;inset:0;background:#0008}
+    .panel{position:absolute;left:0;top:56px;bottom:0;width:260px;background:#101622;border-right:1px solid #283249;padding:16px}
+    .panel a{display:block;padding:11px 12px;border-radius:10px;color:#cfe0ff;text-decoration:none;margin-bottom:8px;background:#141d2d}
+
+    .dropzone { border:1px dashed #3a4a69; padding:16px; border-radius:10px; text-align:center; color:#9eb0cf; }
+    .dropzone.dragover { border-color:#8db4ff; color:#d5e5ff; background:#121b2d; }
+
+    .ai-chat { max-height:260px; overflow:auto; border:1px solid #2a2f3a; border-radius:10px; padding:10px; margin-bottom:10px; }
+    .msg { margin:8px 0; padding:8px 10px; border-radius:10px; }
+    .msg.user { background:#203252; }
+    .msg.assistant { background:#1f2a24; }
+  </style>
+</head>
+<body>
+  <div class="drawer" id="drawer"><div class="backdrop" onclick="toggleMenu(false)"></div><div class="panel"><a href="/">Ideas</a><a href="/new.html">New Idea</a><a href="/labels.html">Label Management</a></div></div>
+
+  <div class="wrap">
+    <div class="top"><button class="menu-btn" onclick="toggleMenu(true)"><span></span></button><a href="/">← Back to all ideas</a></div>
+    <h1 id="titleDisplay">Idea</h1>
+
+    <div class="card">
+      <div class="row">
+        <input id="title" placeholder="Title" />
+        <select id="status">
+          <option value="new">New</option>
+          <option value="researching">Researching</option>
+          <option value="building">Building</option>
+          <option value="paused">Paused</option>
+          <option value="launched">Launched</option>
+        </select>
+      </div>
+      <div class="row">
+        <select id="label"></select>
+        <input id="tags" placeholder="tags, comma, separated" />
+      </div>
+      <textarea id="description" placeholder="Detailed notes"></textarea>
+      <button id="save" style="margin-top:10px">Save changes</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Add attachment / photo</h3>
+      <div id="dropzone" class="dropzone">Drag & drop file(s) here, or pick manually below.</div>
+      <input id="file" type="file" multiple accept="image/*,.pdf,.txt,.md,.doc,.docx" style="margin-top:10px" />
+      <button id="upload" class="ghost" style="margin-top:10px">Attach selected file(s)</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Attachments</h3>
+      <div id="attachments" class="attachments"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">AI Panel</h3>
+      <button id="research" class="ghost" style="margin-bottom:10px">AI: Generate research context</button>
+      <textarea id="researchOut" placeholder="Research context will appear here..."></textarea>
+      <div class="ai-chat" id="aiChat"></div>
+      <div class="row" style="margin-bottom:0">
+        <input id="aiInput" placeholder="Ask AI about this idea (MVP, risks, stack...)" />
+        <button id="aiSend">Send</button>
+      </div>
+    </div>
+  </div>
+
+<script src="/config.js"></script>
+<script>
+const ideaId = new URLSearchParams(location.search).get('id');
+const state = { idea: null, labels: [] };
+const el = {
+  drawer: document.getElementById('drawer'), dropzone: document.getElementById('dropzone'),
+  titleDisplay: document.getElementById('titleDisplay'), title: document.getElementById('title'), status: document.getElementById('status'),
+  label: document.getElementById('label'), tags: document.getElementById('tags'), description: document.getElementById('description'),
+  save: document.getElementById('save'), file: document.getElementById('file'), upload: document.getElementById('upload'), attachments: document.getElementById('attachments'),
+  research: document.getElementById('research'), researchOut: document.getElementById('researchOut'), aiChat: document.getElementById('aiChat'), aiInput: document.getElementById('aiInput'), aiSend: document.getElementById('aiSend')
+};
+const esc = s => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+
+function toggleMenu(open){ el.drawer.classList.toggle('open', open); }
+window.toggleMenu = toggleMenu;
+
+async function api(path, options={}) { const r = await fetch((window.API_BASE || '') + path, { headers:{'Content-Type':'application/json'}, ...options }); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+function renderLabels(selected='') {
+  el.label.innerHTML = '<option value="">No label</option>' + state.labels.map(l => `<option value="${esc(l)}" ${l===selected?'selected':''}>${esc(l)}</option>`).join('');
+}
+
+function renderChat() {
+  const chat = state.idea.aiChat || [];
+  if (!chat.length) { el.aiChat.innerHTML = '<div style="color:#9ca6ba">No AI chat yet.</div>'; return; }
+  el.aiChat.innerHTML = chat.map(m => `<div class="msg ${m.role}"><strong>${m.role === 'user' ? 'You' : 'AI'}:</strong> ${esc(m.text)}</div>`).join('');
+  el.aiChat.scrollTop = el.aiChat.scrollHeight;
+}
+
+function renderIdea() {
+  const i = state.idea;
+  el.titleDisplay.textContent = i.title;
+  el.title.value = i.title;
+  el.status.value = i.status || 'new';
+  renderLabels(i.label || '');
+  el.tags.value = (i.tags || []).join(', ');
+  el.description.value = i.description || '';
+
+  const files = i.attachments || [];
+  if (!files.length) { el.attachments.innerHTML = '<p style="color:#9ca6ba">No attachments yet.</p>'; }
+  else {
+    el.attachments.innerHTML = files.map((f, idx) => {
+      const isImage = (f.type || '').startsWith('image/');
+      return `<div class="file">
+        ${isImage ? `<img src="${f.dataUrl}" alt="${esc(f.name)}" />` : ''}
+        <div style="font-size:12px;word-break:break-all">${esc(f.name)}</div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <a href="${f.dataUrl}" download="${esc(f.name)}"><button class="ghost" style="width:auto">Download</button></a>
+          <button onclick="removeAttachment(${idx})" style="width:auto;background:#b33a3a">Remove</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  renderChat();
+}
+
+async function load() {
+  if (!ideaId) throw new Error('Missing idea id');
+  const [idea, labels] = await Promise.all([api('/api/ideas/' + encodeURIComponent(ideaId)), api('/api/labels')]);
+  state.idea = idea;
+  state.labels = labels;
+  renderIdea();
+}
+
+async function save() {
+  const payload = {
+    title: el.title.value.trim(),
+    status: el.status.value,
+    label: el.label.value,
+    tags: el.tags.value.split(',').map(s => s.trim()).filter(Boolean),
+    description: el.description.value,
+    attachments: state.idea.attachments || [],
+    aiChat: state.idea.aiChat || []
+  };
+  state.idea = await api('/api/ideas/' + encodeURIComponent(ideaId), { method:'PUT', body: JSON.stringify(payload) });
+  renderIdea();
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function attachFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  const newItems = [];
+  for (const file of files) {
+    const dataUrl = await readFileAsDataUrl(file);
+    newItems.push({ name: file.name, type: file.type || 'application/octet-stream', dataUrl });
+  }
+  const next = [...(state.idea.attachments || []), ...newItems];
+  state.idea = await api('/api/ideas/' + encodeURIComponent(ideaId), { method:'PUT', body: JSON.stringify({ ...state.idea, attachments: next }) });
+  el.file.value = '';
+  renderIdea();
+}
+
+async function uploadAttachment() {
+  await attachFiles(el.file.files);
+}
+
+async function removeAttachment(idx) {
+  const next = (state.idea.attachments || []).filter((_, i) => i !== idx);
+  state.idea = await api('/api/ideas/' + encodeURIComponent(ideaId), { method:'PUT', body: JSON.stringify({ ...state.idea, attachments: next }) });
+  renderIdea();
+}
+
+async function runResearch() {
+  const { research } = await api('/api/ideas/' + encodeURIComponent(ideaId) + '/research', { method:'POST', body: '{}' });
+  el.researchOut.value = research;
+}
+
+async function sendAI() {
+  const message = el.aiInput.value.trim();
+  if (!message) return;
+  const { chat } = await api('/api/ideas/' + encodeURIComponent(ideaId) + '/ai-chat', { method:'POST', body: JSON.stringify({ message }) });
+  state.idea.aiChat = chat;
+  el.aiInput.value = '';
+  renderChat();
+}
+
+window.removeAttachment = removeAttachment;
+el.save.addEventListener('click', save);
+el.upload.addEventListener('click', uploadAttachment);
+el.research.addEventListener('click', runResearch);
+el.aiSend.addEventListener('click', sendAI);
+el.aiInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendAI(); } });
+
+el.dropzone.addEventListener('dragover', (e) => { e.preventDefault(); el.dropzone.classList.add('dragover'); });
+el.dropzone.addEventListener('dragleave', () => el.dropzone.classList.remove('dragover'));
+el.dropzone.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  el.dropzone.classList.remove('dragover');
+  await attachFiles(e.dataTransfer.files);
+});
+
+load().catch(err => { document.body.innerHTML = `<div style="padding:20px;color:#ff8080">${esc(err.message)}</div>`; });
+</script>
+</body>
+</html>
